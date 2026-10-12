@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Jameel Noori Nastaleeq';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Jameel Noori Nastaleeq'),
+       local('JameelNooriNastaleeq'),
+       url('https://cdn.jsdelivr.net/gh/tariq-abdullah/urdu-web-font-CDN@master/fonts/Jameel-Noori-Nastaleeq.woff') format('woff'),
+       url('https://cdn.jsdelivr.net/gh/urdufonts/urdu-fonts@master/fonts/JameelNooriNastaleeq.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Jameel Noori Nastaleeq';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Jameel Noori Nastaleeq Bold'),
+       local('Jameel Noori Nastaleeq Kasheeda'),
+       local('JameelNooriNastaleeq-Bold'),
+       url('https://cdn.jsdelivr.net/gh/tariq-abdullah/urdu-web-font-CDN@master/fonts/Jameel-Noori-Nastaleeq.woff') format('woff'),
+       url('https://cdn.jsdelivr.net/gh/urdufonts/urdu-fonts@master/fonts/JameelNooriNastaleeq.ttf') format('truetype');
+  font-display: swap;
+}
+
+@layer base {
+  body {
+    font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Gulzar', 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.8;
+  }
+
+  .font-nastaliq {
+    font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Gulzar', serif;
+  }
+
+  .font-arabic {
+    font-family: 'Noto Sans Arabic', system-ui, sans-serif;
+  }
+
+  /* Universal Nastaleeq styling for headings and labels */
+  h1, h2, h3, h4, button, label {
+    font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', 'Gulzar', 'Noto Sans Arabic', system-ui, sans-serif;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Print Specific Rules for Official Madrasa Slips & Ledgers */
+@media print {
+  /* Hide interactive web UI */
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .pwa-install-banner {
+    display: none !important;
+  }
+
+  body {
+    background-color: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .printable-area {
+    position: static !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .single-page-print {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 10mm;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
