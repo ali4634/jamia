@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
   Save,
@@ -13,9 +13,16 @@ import {
   FileCode2,
   ShieldCheck,
   Database,
+  Lock,
+  KeyRound,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  HelpCircle,
 } from 'lucide-react';
 import { MadrasaSettings } from '../types/maliyat';
 import { storage } from '../services/storage';
+import { authService, PRESET_SECURITY_QUESTIONS } from '../services/auth';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,7 +30,7 @@ interface SettingsModalProps {
   settings: MadrasaSettings;
   onSaveSettings: (settings: MadrasaSettings) => void;
   onDataChanged: () => void;
-  initialTab?: 'settings' | 'backup';
+  initialTab?: 'settings' | 'backup' | 'security';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -38,7 +45,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     ...settings,
     founderName: settings.founderName || 'شیخ الحدیث حضرت مولانا عبدالمجید رحمہ اللہ',
   });
-  const [activeTab, setActiveTab] = useState<'backup' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'backup' | 'settings' | 'security'>(initialTab);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Import preview state
@@ -57,6 +64,116 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Copy indicator
   const [hasCopied, setHasCopied] = useState(false);
+
+  // Security Tab State
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [pwdSuccessMsg, setPwdSuccessMsg] = useState<string | null>(null);
+  const [pwdErrorMsg, setPwdErrorMsg] = useState<string | null>(null);
+  const [isChangingPwd, setIsChangingPwd] = useState(false);
+
+  const authConfig = authService.getAuthConfig();
+  const [secQuestion, setSecQuestion] = useState(authConfig.securityQuestion);
+  const [currentActiveQuestion, setCurrentActiveQuestion] = useState(authConfig.securityQuestion);
+  const [secAnswer, setSecAnswer] = useState('');
+  const [showSecAnswer, setShowSecAnswer] = useState(false);
+  const [secSuccessMsg, setSecSuccessMsg] = useState<string | null>(null);
+  const [secErrorMsg, setSecErrorMsg] = useState<string | null>(null);
+  const [isUpdatingSecQuestion, setIsUpdatingSecQuestion] = useState(false);
+
+  // Sync state when modal opens or initialTab changes
+  useEffect(() => {
+    if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
+      setFormData({
+        ...settings,
+        founderName: settings.founderName || 'شیخ الحدیث حضرت مولانا عبدالمجید رحمہ اللہ',
+      });
+      const cfg = authService.getAuthConfig();
+      setSecQuestion(cfg.securityQuestion);
+      setCurrentActiveQuestion(cfg.securityQuestion);
+      setSecAnswer('');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setPwdSuccessMsg(null);
+      setPwdErrorMsg(null);
+      setSecSuccessMsg(null);
+      setSecErrorMsg(null);
+    }
+  }, [isOpen, initialTab, settings]);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdErrorMsg(null);
+    setPwdSuccessMsg(null);
+
+    if (!oldPassword.trim()) {
+      setPwdErrorMsg('برائے مہربانی موجودہ پاس ورڈ درج کریں!');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPwdErrorMsg('نیا پاس ورڈ اور تصدیق آپس میں میل نہیں کھاتے!');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setPwdErrorMsg('نیا پاس ورڈ کم از کم ۴ ہندسوں یا حروف پر مشتمل ہونا چاہیے!');
+      return;
+    }
+
+    setIsChangingPwd(true);
+    try {
+      const res = await authService.changePassword(oldPassword, newPassword);
+      if (res.success) {
+        setPwdSuccessMsg(res.message);
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setTimeout(() => setPwdSuccessMsg(null), 4000);
+      } else {
+        setPwdErrorMsg(res.message);
+      }
+    } catch {
+      setPwdErrorMsg('پاس ورڈ تبدیل کرنے میں خرابی پیش آئی۔');
+    } finally {
+      setIsChangingPwd(false);
+    }
+  };
+
+  const handleUpdateSecurityQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecErrorMsg(null);
+    setSecSuccessMsg(null);
+
+    if (!secQuestion.trim() || !secAnswer.trim()) {
+      setSecErrorMsg('سوال اور خفیہ جواب دونوں درج کرنا ضروری ہیں!');
+      return;
+    }
+
+    setIsUpdatingSecQuestion(true);
+    try {
+      const res = await authService.updateSecurityQuestion(secQuestion, secAnswer);
+      if (res.success) {
+        setSecSuccessMsg(res.message);
+        setCurrentActiveQuestion(secQuestion.trim());
+        setSecAnswer('');
+        setTimeout(() => setSecSuccessMsg(null), 4000);
+      } else {
+        setSecErrorMsg(res.message);
+      }
+    } catch {
+      setSecErrorMsg('سیکورٹی سوال محفوظ کرنے میں خرابی پیش آئی۔');
+    } finally {
+      setIsUpdatingSecQuestion(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -228,31 +345,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         )}
 
         {/* Tab Buttons */}
-        <div className="flex bg-slate-100 p-1 rounded-xl mb-5 text-xs font-semibold">
+        <div className="flex bg-slate-100 p-1 rounded-xl mb-5 text-xs font-semibold gap-1">
           <button
             onClick={() => setActiveTab('backup')}
-            className={`flex-1 py-2.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'backup'
                 ? 'bg-white text-emerald-900 shadow-2xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-emerald-700" />
-            <span>ڈیٹا بیک اپ و بحالی (JSON Export & Import)</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span className="truncate">بیک اپ و بحالی</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-2.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'settings'
                 ? 'bg-white text-slate-900 shadow-2xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>مدرسہ معلومات و پروفائل</span>
+            <Database className="w-4 h-4 text-slate-600 shrink-0" />
+            <span className="truncate">مدرسہ پروفائل</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex-1 py-2.5 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              activeTab === 'security'
+                ? 'bg-white text-emerald-900 shadow-2xs font-bold'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="truncate">سیکیورٹی و پاس ورڈ</span>
           </button>
         </div>
 
-        {activeTab === 'backup' ? (
+        {activeTab === 'backup' && (
           /* JSON BACKUP & RESTORE TAB */
           <div className="space-y-5 text-sm">
             {/* Live Database Overview Strip */}
@@ -569,7 +698,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'settings' && (
           /* MADRASA PROFILE SETTINGS TAB */
           <form onSubmit={handleSettingsSubmit} className="space-y-3.5 text-sm">
             <div>
@@ -694,6 +825,232 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </form>
+        )}
+
+        {activeTab === 'security' && (
+          /* SECURITY AND PASSWORD TAB */
+          <div className="space-y-6 text-sm">
+            {/* Header / Notice */}
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-amber-950 font-nastaliq text-base mb-1">
+                  پاس ورڈ و سیکیورٹی کنٹرول
+                </h4>
+                <p className="text-xs text-amber-900 leading-relaxed font-nastaliq">
+                  آپ کا پاس ورڈ براؤزر کے محفوظ ویب کرپٹو سسٹم (SHA-256) کے ذریعے محفوظ رہتا ہے۔ بغیر درست پاس ورڈ کوئی بھی شخص مالیاتی اعداد و شمار، روزنامچہ یا تنخواہوں کے ریکارڈ تک رسائی حاصل نہیں کر سکتا۔
+                </p>
+              </div>
+            </div>
+
+            {/* Change Password Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+              <h3 className="text-sm font-bold text-slate-900 font-nastaliq flex items-center gap-2 mb-3">
+                <KeyRound className="w-4 h-4 text-emerald-700" />
+                سسٹم پاس ورڈ تبدیل کریں
+              </h3>
+
+              {pwdSuccessMsg && (
+                <div className="mb-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-semibold flex items-center gap-2 font-nastaliq">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{pwdSuccessMsg}</span>
+                </div>
+              )}
+
+              {pwdErrorMsg && (
+                <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2 font-nastaliq">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{pwdErrorMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    موجودہ پاس ورڈ <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showOldPassword ? 'text' : 'password'}
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      placeholder="موجودہ پاس ورڈ درج کریں..."
+                      className="w-full px-3 py-2 pl-10 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      نیا پاس ورڈ <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="کم از کم ۴ ہندسے یا حروف..."
+                        className="w-full px-3 py-2 pl-10 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      نئے پاس ورڈ کی تصدیق <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="نیا پاس ورڈ دوبارہ درج کریں..."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isChangingPwd}
+                    className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-lg text-xs transition shadow-sm font-nastaliq flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>نیا پاس ورڈ محفوظ کریں</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Security Question for Recovery */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 font-nastaliq flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                    سیکورٹی سوال برائے پاس ورڈ ریکوری (Password Recovery Question)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    اگر آپ پاس ورڈ بھول جائیں تو لاگ ان پیج پر اس خفیہ سوال کا جواب دے کر نیا پاس ورڈ فوری ری سیٹ کر سکتے ہیں۔
+                  </p>
+                </div>
+              </div>
+
+              {/* Active Security Question Badge */}
+              <div className="mb-4 p-3 bg-emerald-50/90 border border-emerald-300 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950 font-nastaliq">
+                <HelpCircle className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-[11px] font-bold text-emerald-800">سسٹم میں موجودہ فعال سوال:</div>
+                  <div className="text-xs font-bold text-emerald-950 mt-0.5">
+                    {currentActiveQuestion || 'جامعہ انوارالقرآن کے بانی محترم کا نام کیا ہے؟'}
+                  </div>
+                </div>
+              </div>
+
+              {secSuccessMsg && (
+                <div className="mb-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-semibold flex items-center gap-2 font-nastaliq animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{secSuccessMsg}</span>
+                </div>
+              )}
+
+              {secErrorMsg && (
+                <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2 font-nastaliq animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{secErrorMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleUpdateSecurityQuestion} className="space-y-3.5">
+                {/* Preset Questions Chips */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5 font-nastaliq">
+                    تجویز کردہ سوالات (کسی ایک پر کلک کر کے منتخب کریں):
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {PRESET_SECURITY_QUESTIONS.map((q, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSecQuestion(q)}
+                        className={`text-[11px] px-2.5 py-1 rounded-lg border transition font-nastaliq text-right cursor-pointer ${
+                          secQuestion === q
+                            ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    سیکورٹی سوال درج فرمائیں <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={secQuestion}
+                    onChange={(e) => setSecQuestion(e.target.value)}
+                    placeholder="مثال: جامعہ انوارالقرآن کے بانی محترم کا نام کیا ہے؟"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none font-nastaliq"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    اس سوال کا خفیہ جواب <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSecAnswer ? 'text' : 'password'}
+                      value={secAnswer}
+                      onChange={(e) => setSecAnswer(e.target.value)}
+                      placeholder="خفیہ جواب درج کریں (یاد رہے کہ پاس ورڈ بھولنے پر یہی جواب درج کرنا ہوگا)..."
+                      className="w-full px-3 py-2 pl-10 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecAnswer(!showSecAnswer)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showSecAnswer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    نوٹ: یہ جواب انکرپٹ ہو کر محفوظ رہے گا، اسے یاد رکھنا ضروری ہے۔
+                  </p>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingSecQuestion}
+                    className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-lg text-xs transition shadow-sm font-nastaliq flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isUpdatingSecQuestion ? 'محفوظ ہو رہا ہے...' : 'سیکورٹی سوال محفوظ کریں'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </div>

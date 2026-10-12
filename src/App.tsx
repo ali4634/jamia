@@ -13,15 +13,18 @@ import { SettingsModal } from './components/SettingsModal';
 import { StaffModal } from './components/StaffModal';
 import { TransactionFormModal } from './components/TransactionFormModal';
 import { storage } from './services/storage';
+import { authService } from './services/auth';
 import { MadrasaSettings, SalaryPayment, StaffMember, Transaction } from './types/maliyat';
 import { DashboardView } from './views/DashboardView';
 import { ExpensesView } from './views/ExpensesView';
 import { IncomeView } from './views/IncomeView';
+import { LoginView } from './views/LoginView';
 import { ReportsView } from './views/ReportsView';
 import { RoznamchaView } from './views/RoznamchaView';
 import { StaffView } from './views/StaffView';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => authService.hasActiveSession());
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
 
   // Application Data State
@@ -41,7 +44,7 @@ export default function App() {
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
 
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'settings' | 'backup'>('backup');
+  const [settingsTab, setSettingsTab] = useState<'settings' | 'backup' | 'security'>('backup');
 
   // Print Slip Modal
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -178,12 +181,28 @@ export default function App() {
     setSettings(newSettings);
   };
 
+  // Lock application and end active session
+  const handleLockApp = () => {
+    authService.clearSession();
+    setIsAuthenticated(false);
+  };
+
   // Compute next receipt or voucher number
   const nextReceiptNo = (() => {
     const relevant = transactions.filter((t) => t.type === txModalType);
     const prefix = txModalType === 'income' ? 'REC-' : 'EXP-';
     return `${prefix}${1000 + relevant.length + 1}`;
   })();
+
+  // Security gate: If not authenticated, render LoginView only
+  if (!isAuthenticated) {
+    return (
+      <LoginView
+        settings={settings}
+        onLoginSuccess={() => setIsAuthenticated(true)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans" dir="rtl">
@@ -197,6 +216,7 @@ export default function App() {
           setIsSettingsModalOpen(true);
         }}
         onOpenDailyBackup={() => handleOpenDailyBackup('manual')}
+        onLockApp={handleLockApp}
         settings={settings}
       />
 

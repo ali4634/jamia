@@ -2,5 +2,7 @@
   "name": "مدرسہ مالیات و محاسبی نظام",
   "description": "مدرسہ کی آمدن، اخراجات، زکوٰۃ و عطیات، اساتذہ تنخواہیں، روزنامچہ اور باضابطہ رسیدات کا مکمل آف لائن و PWA مالیاتی نظام",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Settings, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, Cloud } from 'lucide-react';
+import { Plus, Settings, TrendingUp, TrendingDown, ShieldCheck, ShieldAlert, Cloud, Lock } from 'lucide-react';
 import { MadrasaSettings } from '../types/maliyat';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -9,8 +9,9 @@ interface NavbarProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenNewTransaction: (type?: 'income' | 'expense') => void;
-  onOpenSettings: (tab?: 'settings' | 'backup') => void;
+  onOpenSettings: (tab?: 'settings' | 'backup' | 'security') => void;
   onOpenDailyBackup?: () => void;
+  onLockApp?: () => void;
   settings: MadrasaSettings;
 }
 
@@ -20,6 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewTransaction,
   onOpenSettings,
   onOpenDailyBackup,
+  onLockApp,
   settings,
 }) => {
   const lastBackupIso = settings.backupConfig?.lastBackupTimestamp;
@@ -165,6 +167,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>خرچ واؤچر</span>
               </button>
             </div>
+
+            {onLockApp && (
+              <button
+                onClick={onLockApp}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-semibold transition cursor-pointer"
+                title="سسٹم لاک کریں (پاس ورڈ سیکیورٹی)"
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-700" />
+                <span className="hidden sm:inline">لاک کریں</span>
+              </button>
+            )}
 
             <button
               onClick={() => onOpenSettings('backup')}
